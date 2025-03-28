@@ -80,7 +80,7 @@
             text-align: right;
         }
 
-        .message.other {
+        .message.buddy {
             background-color: #333;
             text-align: left;
         }
@@ -121,11 +121,6 @@
     <div class="topics-pane">
         <h2>Topics</h2>
         <ul class="topic-list">
-            <li class="active">General</li>
-            <li>Math</li>
-            <li>Science</li>
-            <li>History</li>
-            <li>Programming</li>
         </ul>
     </div>
 
@@ -134,9 +129,6 @@
             <h2>General Chat</h2>
         </div>
         <div class="chat-messages">
-            <div class="message other">Hello!</div>
-            <div class="message user">Hi there!</div>
-            <div class="message other">How are you doing?</div>
         </div>
         <div class="chat-input">
             <textarea placeholder="Type your message..."></textarea>
@@ -145,41 +137,67 @@
     </div>
 
     <script>
-        // Basic JavaScript for topic selection (you'll expand this later)
-        const topicListItems = document.querySelectorAll('.topic-list li');
-        topicListItems.forEach(item => {
-            item.addEventListener('click', () => {
-                // Remove 'active' class from all items
-                topicListItems.forEach(li => li.classList.remove('active'));
-                // Add 'active' class to the clicked item
-                item.classList.add('active');
-                // Update the chat header (you'll expand this later)
-                const chatHeader = document.querySelector('.chat-header h2');
-                chatHeader.textContent = item.textContent + " Chat";
-            });
-        });
-
-        // Fetch data from the backend (example)
-        fetch('http://localhost:8000/api/data')
-            .then(response => response.json())
-            .then(data => {
-                console.log(data.message);
-                // You can do something with the data here, like display it in a message
-                const chatMessages = document.querySelector('.chat-messages');
-                const messageDiv = document.createElement('div');
-                messageDiv.classList.add('message', 'other');
-                messageDiv.textContent = data.message;
-                chatMessages.appendChild(messageDiv);
-            })
-            .catch(error => {
-                console.error('Error fetching data:', error);
-            });
-        
-        // Send message
+        const topicList = document.querySelector('.topic-list');
+        const chatHeader = document.querySelector('.chat-header h2');
+        const chatMessages = document.querySelector('.chat-messages');
         const sendButton = document.querySelector('.chat-input button');
         const messageTextArea = document.querySelector('.chat-input textarea');
-        const chatMessages = document.querySelector('.chat-messages');
 
+        // Function to load topic content
+        const loadTopicContent = async (topic) => {
+            try {
+                const response = await fetch(`http://localhost:8000/api/topics/${topic}`);
+                if (!response.ok) {
+                    throw new Error(`Failed to load topic content: ${response.status}`);
+                }
+                const data = await response.json();
+                chatMessages.innerHTML = `<div class="message other">${data.content.replace(/\n/g, '<br>')}</div>`;
+            } catch (error) {
+                console.error('Error loading topic content:', error);
+                chatMessages.innerHTML = `<div class="message other">Error loading topic content.</div>`;
+            }
+        };
+
+        // Function to load topics
+        const loadTopics = async () => {
+            console.log('Loading topics...');
+            try {
+                const response = await fetch('http://localhost:8000/api/topics');
+                if (!response.ok) {
+                    console.error('Failed to load topics:', response.status);
+                    throw new Error(`Failed to load topics: ${response.status}`);
+                }
+                const data = await response.json();
+                console.log('Topics loaded:', data.topics);
+                topicList.innerHTML = ''; // Clear existing topics
+                data.topics.forEach(topic => {
+                    const li = document.createElement('li');
+                    li.textContent = topic;
+                    li.addEventListener('click', () => {
+                        // Remove 'active' class from all items
+                        topicList.querySelectorAll('li').forEach(li => li.classList.remove('active'));
+                        // Add 'active' class to the clicked item
+                        li.classList.add('active');
+                        // Update the chat header
+                        chatHeader.textContent = topic + " Chat";
+                        // Load topic content
+                        loadTopicContent(topic);
+                    });
+                    topicList.appendChild(li);
+                });
+                // Set the first topic as active by default
+                if (data.topics.length > 0) {
+                    topicList.querySelector('li').classList.add('active');
+                    chatHeader.textContent = data.topics[0] + " Chat";
+                    loadTopicContent(data.topics[0]);
+                }
+            } catch (error) {
+                console.error('Error loading topics:', error);
+                topicList.innerHTML = '<li>Error loading topics.</li>';
+            }
+        };
+
+        // Send message
         const sendMessage = () => {
             const messageText = messageTextArea.value.trim();
             if (messageText !== '') {
@@ -200,6 +218,9 @@
                 sendMessage();
             }
         });
+
+        // Load topics on page load
+        loadTopics();
     </script>
 </body>
 </html>
